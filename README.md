@@ -10,7 +10,7 @@ Os três pilares: **Transactional Outbox** (publicação atômica), **Inbox**
 (consumo idempotente) e **Saga** (coordenação com compensação) — implementados
 à mão sobre RabbitMQ + PostgreSQL para expor a mecânica que frameworks escondem.
 
-[![CI](https://github.com/OWNER/distributed-consistency-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/distributed-consistency-lab/actions/workflows/ci.yml)
+[![CI](https://github.com/thomasmoreira/distributed-consistency-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/thomasmoreira/distributed-consistency-lab/actions/workflows/ci.yml)
 
 ---
 

@@ -36,6 +36,8 @@ public sealed partial class RabbitMqConsumerHost(
             Port = _rabbit.Port,
             UserName = _rabbit.Username,
             Password = _rabbit.Password,
+            AutomaticRecoveryEnabled = true,
+            TopologyRecoveryEnabled = true,
         };
 
         _connection = await factory.CreateConnectionAsync(stoppingToken);

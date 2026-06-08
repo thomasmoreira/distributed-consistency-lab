@@ -1,7 +1,6 @@
 using BuildingBlocks.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Shouldly;
-using Testcontainers.PostgreSql;
 
 namespace Tests.Integration;
 
@@ -9,19 +8,20 @@ namespace Tests.Integration;
 /// Proves exactly-once-effect at the inbox-processor level, deterministically (no broker):
 /// processing the same message-id twice runs the effect once (ADR-002).
 /// </summary>
-public sealed class InboxProcessorTests : IAsyncLifetime
+[Collection(IntegrationCollection.Name)]
+public sealed class InboxProcessorTests(PostgresFixture postgres) : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine").Build();
+    private string _conn = null!;
 
     public async Task InitializeAsync()
     {
-        await _postgres.StartAsync();
+        _conn = await postgres.CreateDatabaseAsync();
 
         await using var db = NewDb();
         await db.Database.EnsureCreatedAsync();
     }
 
-    public Task DisposeAsync() => _postgres.DisposeAsync().AsTask();
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task Effect_runs_once_when_the_same_message_is_processed_twice()
@@ -62,7 +62,7 @@ public sealed class InboxProcessorTests : IAsyncLifetime
     private MessagingTestDbContext NewDb()
     {
         var options = new DbContextOptionsBuilder<MessagingTestDbContext>()
-            .UseNpgsql(_postgres.GetConnectionString())
+            .UseNpgsql(_conn)
             .Options;
         return new MessagingTestDbContext(options);
     }

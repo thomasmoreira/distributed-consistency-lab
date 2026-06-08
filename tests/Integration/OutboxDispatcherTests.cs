@@ -6,7 +6,6 @@ using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 using RabbitMQ.Client;
 using Shouldly;
-using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
 
 namespace Tests.Integration;
@@ -16,17 +15,19 @@ namespace Tests.Integration;
 /// a row written to the outbox is published exactly once and marked processed,
 /// and a second drain is a no-op (processed rows are never re-published).
 /// </summary>
-public sealed class OutboxDispatcherTests : IAsyncLifetime
+[Collection(IntegrationCollection.Name)]
+public sealed class OutboxDispatcherTests(PostgresFixture postgres) : IAsyncLifetime
 {
     private const string Exchange = "dcl.events";
 
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine").Build();
+    private string _conn = null!;
 
     private readonly RabbitMqContainer _rabbit = new RabbitMqBuilder("rabbitmq:4").Build();
 
     public async Task InitializeAsync()
     {
-        await Task.WhenAll(_postgres.StartAsync(), _rabbit.StartAsync());
+        _conn = await postgres.CreateDatabaseAsync();
+        await _rabbit.StartAsync();
 
         await using var db = CreateDbContext();
         await db.Database.EnsureCreatedAsync();
@@ -34,7 +35,6 @@ public sealed class OutboxDispatcherTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await _postgres.DisposeAsync();
         await _rabbit.DisposeAsync();
     }
 
@@ -91,7 +91,7 @@ public sealed class OutboxDispatcherTests : IAsyncLifetime
     private TestDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseNpgsql(_postgres.GetConnectionString())
+            .UseNpgsql(_conn)
             .Options;
         return new TestDbContext(options);
     }

@@ -8,7 +8,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using Shouldly;
-using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
 
 namespace Tests.Integration;
@@ -17,18 +16,20 @@ namespace Tests.Integration;
 /// Proves F2 against real infrastructure: the same message delivered twice triggers the
 /// consumer effect exactly once. The inbox dedups the redelivery (ADR-002).
 /// </summary>
-public sealed class RabbitMqConsumerHostTests : IAsyncLifetime
+[Collection(IntegrationCollection.Name)]
+public sealed class RabbitMqConsumerHostTests(PostgresFixture postgres) : IAsyncLifetime
 {
     private const string Exchange = "dcl.events";
     private const string Queue = "test.inventory";
     private const string RoutingKey = nameof(OrderPlaced);
 
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine").Build();
+    private string _conn = null!;
     private readonly RabbitMqContainer _rabbit = new RabbitMqBuilder("rabbitmq:4").Build();
 
     public async Task InitializeAsync()
     {
-        await Task.WhenAll(_postgres.StartAsync(), _rabbit.StartAsync());
+        _conn = await postgres.CreateDatabaseAsync();
+        await _rabbit.StartAsync();
 
         await using var db = NewDb();
         await db.Database.EnsureCreatedAsync();
@@ -36,7 +37,6 @@ public sealed class RabbitMqConsumerHostTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await _postgres.DisposeAsync();
         await _rabbit.DisposeAsync();
     }
 
@@ -77,7 +77,7 @@ public sealed class RabbitMqConsumerHostTests : IAsyncLifetime
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton(counter);
-        services.AddDbContext<MessagingTestDbContext>(o => o.UseNpgsql(_postgres.GetConnectionString()));
+        services.AddDbContext<MessagingTestDbContext>(o => o.UseNpgsql(_conn));
         services.AddScoped<MessagingDbContext>(sp => sp.GetRequiredService<MessagingTestDbContext>());
         services.AddOutboxInbox();
         services.AddIntegrationEventConsumer<OrderPlaced, CountingConsumer>();
@@ -140,7 +140,7 @@ public sealed class RabbitMqConsumerHostTests : IAsyncLifetime
     private MessagingTestDbContext NewDb()
     {
         var options = new DbContextOptionsBuilder<MessagingTestDbContext>()
-            .UseNpgsql(_postgres.GetConnectionString())
+            .UseNpgsql(_conn)
             .Options;
         return new MessagingTestDbContext(options);
     }

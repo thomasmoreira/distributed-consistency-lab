@@ -7,7 +7,6 @@ using Services.Orders.Features;
 using Services.Orders.Infrastructure;
 using Services.Orders.Saga;
 using Shouldly;
-using Testcontainers.PostgreSql;
 
 namespace Tests.Integration;
 
@@ -15,19 +14,20 @@ namespace Tests.Integration;
 /// Proves phase 4b: the orchestration saga in Orders consumes the reply events, drives the
 /// persisted state machine, and moves the order to its final outcome (spec §5.3, ADR-003).
 /// </summary>
-public sealed class OrderSagaOrchestrationTests : IAsyncLifetime
+[Collection(IntegrationCollection.Name)]
+public sealed class OrderSagaOrchestrationTests(PostgresFixture postgres) : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine").Build();
+    private string _conn = null!;
 
     public async Task InitializeAsync()
     {
-        await _postgres.StartAsync();
+        _conn = await postgres.CreateDatabaseAsync();
 
         await using var db = NewDb();
         await db.Database.MigrateAsync();
     }
 
-    public Task DisposeAsync() => _postgres.DisposeAsync().AsTask();
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task Happy_path_confirms_the_order()
@@ -118,7 +118,7 @@ public sealed class OrderSagaOrchestrationTests : IAsyncLifetime
     private OrdersDbContext NewDb()
     {
         var options = new DbContextOptionsBuilder<OrdersDbContext>()
-            .UseNpgsql(_postgres.GetConnectionString())
+            .UseNpgsql(_conn)
             .Options;
         return new OrdersDbContext(options);
     }

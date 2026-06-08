@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Services.Orders.Domain;
 using Services.Orders.Infrastructure;
 using Shouldly;
-using Testcontainers.PostgreSql;
 
 namespace Tests.Integration;
 
@@ -15,19 +14,20 @@ namespace Tests.Integration;
 /// saga, but with no central state — decisions come from the order's own status, and the
 /// status guard makes reactions idempotent (ADR-002).
 /// </summary>
-public sealed class ChoreographyCoordinatorTests : IAsyncLifetime
+[Collection(IntegrationCollection.Name)]
+public sealed class ChoreographyCoordinatorTests(PostgresFixture postgres) : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine").Build();
+    private string _conn = null!;
 
     public async Task InitializeAsync()
     {
-        await _postgres.StartAsync();
+        _conn = await postgres.CreateDatabaseAsync();
 
         await using var db = NewDb();
         await db.Database.MigrateAsync();
     }
 
-    public Task DisposeAsync() => _postgres.DisposeAsync().AsTask();
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task Payment_charged_confirms_the_order_idempotently()
@@ -109,5 +109,5 @@ public sealed class ChoreographyCoordinatorTests : IAsyncLifetime
     }
 
     private OrdersDbContext NewDb() =>
-        new(new DbContextOptionsBuilder<OrdersDbContext>().UseNpgsql(_postgres.GetConnectionString()).Options);
+        new(new DbContextOptionsBuilder<OrdersDbContext>().UseNpgsql(_conn).Options);
 }

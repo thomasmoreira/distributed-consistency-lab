@@ -6,7 +6,6 @@ using Services.Inventory.Consumers;
 using Services.Inventory.Domain;
 using Services.Inventory.Infrastructure;
 using Shouldly;
-using Testcontainers.PostgreSql;
 
 namespace Tests.Integration;
 
@@ -14,19 +13,20 @@ namespace Tests.Integration;
 /// Proves phase 3b: Inventory reserves stock on OrderPlaced and emits the saga's next event,
 /// idempotently — reprocessing the same message reserves once (ADR-002).
 /// </summary>
-public sealed class InventoryReserveStockTests : IAsyncLifetime
+[Collection(IntegrationCollection.Name)]
+public sealed class InventoryReserveStockTests(PostgresFixture postgres) : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine").Build();
+    private string _conn = null!;
 
     public async Task InitializeAsync()
     {
-        await _postgres.StartAsync();
+        _conn = await postgres.CreateDatabaseAsync();
 
         await using var db = NewDb();
         await db.Database.MigrateAsync();
     }
 
-    public Task DisposeAsync() => _postgres.DisposeAsync().AsTask();
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task Reserves_stock_once_and_emits_StockReserved_even_when_redelivered()
@@ -115,7 +115,7 @@ public sealed class InventoryReserveStockTests : IAsyncLifetime
     private InventoryDbContext NewDb()
     {
         var options = new DbContextOptionsBuilder<InventoryDbContext>()
-            .UseNpgsql(_postgres.GetConnectionString())
+            .UseNpgsql(_conn)
             .Options;
         return new InventoryDbContext(options);
     }

@@ -15,7 +15,6 @@ using Services.Payments;
 using Services.Payments.Domain;
 using Services.Payments.Infrastructure;
 using Shouldly;
-using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
 
 namespace Tests.Integration;
@@ -29,16 +28,21 @@ namespace Tests.Integration;
 /// stock reserved once.</item>
 /// </list>
 /// </summary>
-public sealed class EndToEndResilienceTests : IAsyncLifetime
+[Collection(IntegrationCollection.Name)]
+public sealed class EndToEndResilienceTests(PostgresFixture postgres) : IAsyncLifetime
 {
     private const int InitialStock = 100;
     private const int OrderQuantity = 2;
 
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine").Build();
+    private string _conn = null!;
     private readonly RabbitMqContainer _rabbit = new RabbitMqBuilder("rabbitmq:4").Build();
     private readonly List<IHost> _hosts = [];
 
-    public Task InitializeAsync() => Task.WhenAll(_postgres.StartAsync(), _rabbit.StartAsync());
+    public async Task InitializeAsync()
+    {
+        _conn = await postgres.CreateDatabaseAsync();
+        await _rabbit.StartAsync();
+    }
 
     public async Task DisposeAsync()
     {
@@ -58,7 +62,6 @@ public sealed class EndToEndResilienceTests : IAsyncLifetime
             host.Dispose();
         }
 
-        await _postgres.DisposeAsync();
         await _rabbit.DisposeAsync();
     }
 
@@ -178,7 +181,7 @@ public sealed class EndToEndResilienceTests : IAsyncLifetime
     // Application Name gives each service — and the verifier — its own connection pool, so the
     // verifier's polling never starves the services' pools.
     private string Conn(string appName) =>
-        $"{_postgres.GetConnectionString()};Application Name={appName};Maximum Pool Size=20";
+        $"{_conn};Application Name={appName};Maximum Pool Size=20";
 
     // `docker pause`/`unpause` freezes the broker without a graceful close, so connections,
     // data and the port mapping all survive — the broker is simply unresponsive in between.

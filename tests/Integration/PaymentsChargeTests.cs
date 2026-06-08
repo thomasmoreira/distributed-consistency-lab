@@ -7,7 +7,6 @@ using Services.Payments.Consumers;
 using Services.Payments.Domain;
 using Services.Payments.Infrastructure;
 using Shouldly;
-using Testcontainers.PostgreSql;
 
 namespace Tests.Integration;
 
@@ -15,20 +14,21 @@ namespace Tests.Integration;
 /// Proves phase 4a: Payments charges on StockReserved by a deterministic rule (decline above
 /// a threshold) and emits PaymentCharged/PaymentFailed, idempotently (ADR-002).
 /// </summary>
-public sealed class PaymentsChargeTests : IAsyncLifetime
+[Collection(IntegrationCollection.Name)]
+public sealed class PaymentsChargeTests(PostgresFixture postgres) : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine").Build();
+    private string _conn = null!;
     private readonly IPaymentGateway _gateway = new FakePaymentGateway(Options.Create(new PaymentOptions { DeclineAboveAmount = 1000m }));
 
     public async Task InitializeAsync()
     {
-        await _postgres.StartAsync();
+        _conn = await postgres.CreateDatabaseAsync();
 
         await using var db = NewDb();
         await db.Database.MigrateAsync();
     }
 
-    public Task DisposeAsync() => _postgres.DisposeAsync().AsTask();
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task Charges_once_and_emits_PaymentCharged_even_when_redelivered()
@@ -77,7 +77,7 @@ public sealed class PaymentsChargeTests : IAsyncLifetime
     private PaymentsDbContext NewDb()
     {
         var options = new DbContextOptionsBuilder<PaymentsDbContext>()
-            .UseNpgsql(_postgres.GetConnectionString())
+            .UseNpgsql(_conn)
             .Options;
         return new PaymentsDbContext(options);
     }

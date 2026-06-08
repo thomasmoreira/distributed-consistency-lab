@@ -12,7 +12,7 @@ public sealed class OrdersDbContextFactory : IDesignTimeDbContextFactory<OrdersD
     public OrdersDbContext CreateDbContext(string[] args)
     {
         var options = new DbContextOptionsBuilder<OrdersDbContext>()
-            .UseNpgsql("Host=localhost;Database=dcl;Username=dcl;Password=dcl;SearchPath=orders")
+            .UseNpgsql("Host=localhost;Database=dcl;Username=dcl;Password=dcl")
             .Options;
 
         return new OrdersDbContext(options);

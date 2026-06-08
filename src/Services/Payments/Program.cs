@@ -7,7 +7,7 @@ using Services.Payments.Infrastructure;
 var builder = Host.CreateApplicationBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("Postgres")
-    ?? "Host=localhost;Database=dcl;Username=dcl;Password=dcl;SearchPath=payments";
+    ?? "Host=localhost;Database=dcl;Username=dcl;Password=dcl";
 
 builder.Services.AddPayments(connectionString);
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq").Bind);

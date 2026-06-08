@@ -9,7 +9,7 @@ public sealed class PaymentsDbContextFactory : IDesignTimeDbContextFactory<Payme
     public PaymentsDbContext CreateDbContext(string[] args)
     {
         var options = new DbContextOptionsBuilder<PaymentsDbContext>()
-            .UseNpgsql("Host=localhost;Database=dcl;Username=dcl;Password=dcl;SearchPath=payments")
+            .UseNpgsql("Host=localhost;Database=dcl;Username=dcl;Password=dcl")
             .Options;
 
         return new PaymentsDbContext(options);

@@ -44,7 +44,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      ConnectionStrings__Postgres: "Host=postgres;Database=dcl;Username=dcl;Password=dcl;SearchPath=orders"
+      ConnectionStrings__Postgres: "Host=postgres;Database=dcl;Username=dcl;Password=dcl"
       RabbitMq__Host: "rabbitmq"
     ports:
       - "8080:8080"
@@ -60,7 +60,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      ConnectionStrings__Postgres: "Host=postgres;Database=dcl;Username=dcl;Password=dcl;SearchPath=inventory"
+      ConnectionStrings__Postgres: "Host=postgres;Database=dcl;Username=dcl;Password=dcl"
       RabbitMq__Host: "rabbitmq"
 
   payments:
@@ -74,7 +74,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      ConnectionStrings__Postgres: "Host=postgres;Database=dcl;Username=dcl;Password=dcl;SearchPath=payments"
+      ConnectionStrings__Postgres: "Host=postgres;Database=dcl;Username=dcl;Password=dcl"
       RabbitMq__Host: "rabbitmq"
 
 volumes:

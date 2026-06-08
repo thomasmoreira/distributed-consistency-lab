@@ -7,7 +7,7 @@ using Services.Orders.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("Postgres")
-    ?? "Host=localhost;Database=dcl;Username=dcl;Password=dcl;SearchPath=orders";
+    ?? "Host=localhost;Database=dcl;Username=dcl;Password=dcl";
 
 builder.Services.AddOrders(connectionString);
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq").Bind);

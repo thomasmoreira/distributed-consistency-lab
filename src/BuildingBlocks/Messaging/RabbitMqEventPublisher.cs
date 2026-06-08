@@ -22,6 +22,8 @@ public sealed class RabbitMqEventPublisher(IOptions<RabbitMqOptions> options) : 
     public async Task PublishAsync(OutboxRecord record, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(record);
+        ArgumentException.ThrowIfNullOrEmpty(record.Type);
+        ArgumentException.ThrowIfNullOrEmpty(record.Payload);
 
         var channel = await EnsureChannelAsync(ct);
 
@@ -87,16 +89,28 @@ public sealed class RabbitMqEventPublisher(IOptions<RabbitMqOptions> options) : 
 
     public async ValueTask DisposeAsync()
     {
-        if (_channel is not null)
+        // Nested finally blocks guarantee every resource is released even if an earlier
+        // DisposeAsync throws — no leak of the connection or the semaphore.
+        try
         {
-            await _channel.DisposeAsync();
+            if (_channel is not null)
+            {
+                await _channel.DisposeAsync();
+            }
         }
-
-        if (_connection is not null)
+        finally
         {
-            await _connection.DisposeAsync();
+            try
+            {
+                if (_connection is not null)
+                {
+                    await _connection.DisposeAsync();
+                }
+            }
+            finally
+            {
+                _gate.Dispose();
+            }
         }
-
-        _gate.Dispose();
     }
 }

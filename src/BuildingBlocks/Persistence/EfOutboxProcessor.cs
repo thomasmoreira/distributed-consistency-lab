@@ -9,6 +9,13 @@ namespace BuildingBlocks.Persistence;
 /// rows. A row is only marked processed after the publish callback confirms; if the publish
 /// throws, the transaction rolls back and the rows are retried on the next poll (ADR-001).
 /// </summary>
+/// <remarks>
+/// Known limitation (out of phase-1 scope): there is no backoff or poison-message handling.
+/// The <c>attempts</c> column exists but is not yet incremented, so a permanently-failing
+/// message would be retried forever and, because the batch is ordered by <c>occurred_at</c>,
+/// block the rows behind it (head-of-line blocking). A later phase would add per-message
+/// attempt counting with exponential backoff and a dead-letter path after N failures.
+/// </remarks>
 public sealed class EfOutboxProcessor(MessagingDbContext db) : IOutboxProcessor
 {
     public async Task<int> ProcessPendingAsync(

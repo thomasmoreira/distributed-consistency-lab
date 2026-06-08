@@ -18,6 +18,7 @@ builder.Services.AddRabbitMqPublisher(builder.Configuration.GetSection("RabbitMq
 builder.Services.AddOutboxDispatcher();
 
 builder.Services.AddIntegrationEventConsumer<OrderPlaced, OrderPlacedConsumer>();
+builder.Services.AddIntegrationEventConsumer<ReleaseStockRequested, ReleaseStockRequestedConsumer>();
 builder.Services.AddRabbitMqConsumer("inventory");
 
 var host = builder.Build();

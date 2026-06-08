@@ -69,11 +69,40 @@ public sealed class InventoryReserveStockTests : IAsyncLifetime
         failed.Count(r => r.Payload.Contains(placed.OrderId.ToString(), StringComparison.Ordinal)).ShouldBe(1);
     }
 
+    [Fact]
+    public async Task Releases_reserved_stock_once_and_emits_StockReleased_even_when_redelivered()
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+        var ct = cts.Token;
+
+        await SeedStockAsync("SKU-C", 5, ct);
+        var placed = new OrderPlaced(Guid.CreateVersion7(), "SKU-C", 2, 30m);
+        await ConsumeAsync(placed, ct); // reserve: 5 -> 3
+
+        var release = new ReleaseStockRequested(placed.OrderId, "SKU-C", 2);
+        await ReleaseAsync(release, ct);
+        await ReleaseAsync(release, ct); // redelivery
+
+        await using var db = NewDb();
+        var stock = await db.StockItems.SingleAsync(s => s.Sku == "SKU-C", ct);
+        stock.Available.ShouldBe(5); // released exactly once, back to the original quantity
+
+        var released = await db.Outbox.Where(o => o.Type == nameof(StockReleased)).ToListAsync(ct);
+        released.Count(r => r.Payload.Contains(release.OrderId.ToString(), StringComparison.Ordinal)).ShouldBe(1);
+    }
+
     private async Task ConsumeAsync(OrderPlaced placed, CancellationToken ct)
     {
         await using var db = NewDb();
         var consumer = new OrderPlacedConsumer(db, new EfOutbox(db, new JsonEventSerializer()));
         await new EfInboxProcessor(db).ProcessOnceAsync(placed.Id, c => consumer.ConsumeAsync(placed, c), ct);
+    }
+
+    private async Task ReleaseAsync(ReleaseStockRequested release, CancellationToken ct)
+    {
+        await using var db = NewDb();
+        var consumer = new ReleaseStockRequestedConsumer(db, new EfOutbox(db, new JsonEventSerializer()));
+        await new EfInboxProcessor(db).ProcessOnceAsync(release.Id, c => consumer.ConsumeAsync(release, c), ct);
     }
 
     private async Task SeedStockAsync(string sku, int available, CancellationToken ct)

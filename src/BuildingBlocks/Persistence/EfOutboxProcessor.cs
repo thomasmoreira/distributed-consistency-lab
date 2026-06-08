@@ -27,17 +27,27 @@ public sealed class EfOutboxProcessor(MessagingDbContext db) : IOutboxProcessor
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-        var pending = await db.Outbox
-            .FromSqlInterpolated(
-                $"""
-                 SELECT id, type, payload, occurred_at, processed_at, attempts
-                 FROM outbox
-                 WHERE processed_at IS NULL
-                 ORDER BY occurred_at
-                 FOR UPDATE SKIP LOCKED
-                 LIMIT {batchSize}
-                 """)
-            .ToListAsync(ct);
+        // Reference the table by its mapped, schema-qualified name (from EF metadata) so the
+        // dispatcher works regardless of the connection's search_path.
+        var entityType = db.Model.FindEntityType(typeof(OutboxMessage))
+            ?? throw new InvalidOperationException("OutboxMessage is not mapped.");
+        var table = QualifiedTableName(entityType.GetSchema(), entityType.GetTableName()!);
+
+        // The only interpolated value is the table identifier from EF metadata (trusted, not
+        // user input); the batch size is a real SQL parameter ({0}). Safe from injection.
+        var sql =
+            $$"""
+              SELECT id, type, payload, occurred_at, processed_at, attempts
+              FROM {{table}}
+              WHERE processed_at IS NULL
+              ORDER BY occurred_at
+              FOR UPDATE SKIP LOCKED
+              LIMIT {0}
+              """;
+
+#pragma warning disable EF1002 // table name is from EF metadata, not user input
+        var pending = await db.Outbox.FromSqlRaw(sql, batchSize).ToListAsync(ct);
+#pragma warning restore EF1002
 
         foreach (var message in pending)
         {
@@ -53,4 +63,7 @@ public sealed class EfOutboxProcessor(MessagingDbContext db) : IOutboxProcessor
         await tx.CommitAsync(ct);
         return pending.Count;
     }
+
+    private static string QualifiedTableName(string? schema, string table) =>
+        schema is null ? $"\"{table}\"" : $"\"{schema}\".\"{table}\"";
 }

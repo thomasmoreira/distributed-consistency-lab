@@ -5,7 +5,9 @@ namespace Contracts;
 
 public sealed record OrderPlaced(Guid OrderId, string Sku, int Quantity, decimal Amount) : IntegrationEvent;
 
-public sealed record StockReserved(Guid OrderId, string Sku, int Quantity) : IntegrationEvent;
+// Carries Amount downstream so Payments can charge without re-fetching the order
+// (events carry what consumers need).
+public sealed record StockReserved(Guid OrderId, string Sku, int Quantity, decimal Amount) : IntegrationEvent;
 
 public sealed record StockReservationFailed(Guid OrderId, string Sku, string Reason) : IntegrationEvent;
 

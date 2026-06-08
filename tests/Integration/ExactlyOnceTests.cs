@@ -16,10 +16,7 @@ public class ExactlyOnceTests
         //          no orphan outbox rows (all ProcessedAt != null).
     }
 
-    [Fact(Skip = "F2 — redelivery is absorbed by the inbox (spec §6)")]
-    public void Redelivered_message_is_processed_once()
-    {
-    }
+    // F2 (redelivery absorbed by the inbox) is proved by RabbitMqConsumerHostTests.
 
     [Fact(Skip = "F4 — payment failure triggers compensation (spec §6)")]
     public void Payment_failure_releases_stock_and_cancels_order()

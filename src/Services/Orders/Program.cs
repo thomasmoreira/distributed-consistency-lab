@@ -1,8 +1,11 @@
 using BuildingBlocks.Messaging;
 using BuildingBlocks.Persistence;
+using Contracts;
 using Microsoft.EntityFrameworkCore;
+using Services.Orders.Consumers;
 using Services.Orders.Features;
 using Services.Orders.Infrastructure;
+using Services.Orders.Saga;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +23,15 @@ builder.Services.AddOutboxDispatcher();
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<PlaceOrderHandler>();
+
+// Orchestration saga: Orders consumes the reply events and drives the order to its outcome.
+builder.Services.AddScoped<OrderSagaCoordinator>();
+builder.Services.AddIntegrationEventConsumer<StockReserved, StockReservedSagaConsumer>();
+builder.Services.AddIntegrationEventConsumer<StockReservationFailed, StockReservationFailedSagaConsumer>();
+builder.Services.AddIntegrationEventConsumer<PaymentCharged, PaymentChargedSagaConsumer>();
+builder.Services.AddIntegrationEventConsumer<PaymentFailed, PaymentFailedSagaConsumer>();
+builder.Services.AddIntegrationEventConsumer<StockReleased, StockReleasedSagaConsumer>();
+builder.Services.AddRabbitMqConsumer("orders");
 
 var app = builder.Build();
 

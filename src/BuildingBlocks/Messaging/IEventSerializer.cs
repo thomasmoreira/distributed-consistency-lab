@@ -10,4 +10,10 @@ namespace BuildingBlocks.Messaging;
 public interface IEventSerializer
 {
     (string Type, string Payload) Serialize(IntegrationEvent message);
+
+    /// <summary>
+    /// Rehydrates an event from its payload. The concrete <paramref name="eventType"/> comes
+    /// from the consumer registration that matched the broker's type header.
+    /// </summary>
+    IntegrationEvent Deserialize(string payload, Type eventType);
 }

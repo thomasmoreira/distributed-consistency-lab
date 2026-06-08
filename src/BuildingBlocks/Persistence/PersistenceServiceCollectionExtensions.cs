@@ -16,6 +16,7 @@ public static class PersistenceServiceCollectionExtensions
         services.TryAddScoped<IOutbox, EfOutbox>();
         services.TryAddScoped<IInbox, EfInbox>();
         services.TryAddScoped<IOutboxProcessor, EfOutboxProcessor>();
+        services.TryAddScoped<IInboxProcessor, EfInboxProcessor>();
         return services;
     }
 }

@@ -26,4 +26,12 @@ public sealed class JsonEventSerializer : IEventSerializer
         var payload = JsonSerializer.Serialize(message, message.GetType(), Options);
         return (type, payload);
     }
+
+    public IntegrationEvent Deserialize(string payload, Type eventType)
+    {
+        ArgumentNullException.ThrowIfNull(eventType);
+
+        return JsonSerializer.Deserialize(payload, eventType, Options) as IntegrationEvent
+            ?? throw new InvalidOperationException($"Could not deserialize payload to {eventType.Name}.");
+    }
 }

@@ -5,7 +5,6 @@ using Services.Orders.Domain;
 using Services.Orders.Features;
 using Services.Orders.Infrastructure;
 using Shouldly;
-using Testcontainers.PostgreSql;
 
 namespace Tests.Integration;
 
@@ -13,19 +12,20 @@ namespace Tests.Integration;
 /// Proves phase 2 (spec §10.2): placing an order persists the Order AND writes the
 /// OrderPlaced event to the outbox in a single transaction — no dual-write.
 /// </summary>
-public sealed class PlaceOrderTests : IAsyncLifetime
+[Collection(IntegrationCollection.Name)]
+public sealed class PlaceOrderTests(PostgresFixture postgres) : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine").Build();
+    private string _conn = null!;
 
     public async Task InitializeAsync()
     {
-        await _postgres.StartAsync();
+        _conn = await postgres.CreateDatabaseAsync();
 
         await using var db = CreateDbContext();
         await db.Database.MigrateAsync();
     }
 
-    public Task DisposeAsync() => _postgres.DisposeAsync().AsTask();
+    public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
     public async Task Placing_an_order_persists_it_and_writes_OrderPlaced_to_the_outbox_atomically()
@@ -63,7 +63,7 @@ public sealed class PlaceOrderTests : IAsyncLifetime
     private OrdersDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<OrdersDbContext>()
-            .UseNpgsql(_postgres.GetConnectionString())
+            .UseNpgsql(_conn)
             .Options;
         return new OrdersDbContext(options);
     }

@@ -86,8 +86,11 @@ você sabe a mecânica, sabe configurar e debugar o framework.
 ## Saga: dois estilos lado a lado
 
 O mesmo checkout aparece em **orquestração** (coordenador central com máquina de
-estados) e **coreografia** (serviços reagindo a eventos), com um ADR comparando
-os trade-offs ([ADR-003](docs/adr/ADR-003-saga-orchestration-and-choreography.md)).
+estados persistida, em `src/Services/Orders`) e **coreografia** (reações sem estado
+central, em `src/choreography`). Inventory e Payments são idênticos nos dois estilos —
+só a coordenação do Orders muda. Comparação em
+[ADR-003](docs/adr/ADR-003-saga-orchestration-and-choreography.md) e
+[ADR-006](docs/adr/ADR-006-orchestration-vs-choreography.md).
 
 ## Como rodar
 
@@ -114,10 +117,12 @@ src/
     Orders/         API + OrderSaga (orquestração)
     Inventory/      worker
     Payments/       worker
+  choreography/     variante de coreografia do Orders (sem estado central)
 tests/
   Unit/             máquina de estados da saga
-  Integration/      Testcontainers — F1..F5 + exactly-once
-docs/adr/           decisões de arquitetura
+  Integration/      Testcontainers — outbox/inbox, reserva, cobrança, saga,
+                    resiliência (F1) + exactly-once E2E, coreografia
+docs/adr/           decisões de arquitetura (ADR-001..006)
 ```
 
 ## Decisões de arquitetura
@@ -127,6 +132,7 @@ docs/adr/           decisões de arquitetura
 - [ADR-003 — Saga: orquestração e coreografia](docs/adr/ADR-003-saga-orchestration-and-choreography.md)
 - [ADR-004 — Mensageria caseira](docs/adr/ADR-004-handrolled-messaging.md)
 - [ADR-005 — Schema por serviço](docs/adr/ADR-005-schema-per-service.md)
+- [ADR-006 — Orquestração vs coreografia](docs/adr/ADR-006-orchestration-vs-choreography.md)
 
 ---
 

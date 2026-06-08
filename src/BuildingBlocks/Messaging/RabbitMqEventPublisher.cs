@@ -65,6 +65,8 @@ public sealed class RabbitMqEventPublisher(IOptions<RabbitMqOptions> options) : 
                 Port = _options.Port,
                 UserName = _options.Username,
                 Password = _options.Password,
+                AutomaticRecoveryEnabled = true,
+                TopologyRecoveryEnabled = true,
             };
 
             _connection = await factory.CreateConnectionAsync(ct);

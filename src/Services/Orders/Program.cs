@@ -1,37 +1,16 @@
 using BuildingBlocks.Messaging;
-using BuildingBlocks.Persistence;
-using Contracts;
 using Microsoft.EntityFrameworkCore;
-using Services.Orders.Consumers;
+using Services.Orders;
 using Services.Orders.Features;
 using Services.Orders.Infrastructure;
-using Services.Orders.Saga;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("Postgres")
     ?? "Host=localhost;Database=dcl;Username=dcl;Password=dcl;SearchPath=orders";
 
-// One scoped context instance serves both the domain (OrdersDbContext) and the outbox
-// (MessagingDbContext) so they share a unit of work.
-builder.Services.AddDbContext<OrdersDbContext>(o => o.UseNpgsql(connectionString));
-builder.Services.AddScoped<MessagingDbContext>(sp => sp.GetRequiredService<OrdersDbContext>());
-
-builder.Services.AddOutboxInbox();
-builder.Services.AddRabbitMqPublisher(builder.Configuration.GetSection("RabbitMq").Bind);
-builder.Services.AddOutboxDispatcher();
-
-builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddScoped<PlaceOrderHandler>();
-
-// Orchestration saga: Orders consumes the reply events and drives the order to its outcome.
-builder.Services.AddScoped<OrderSagaCoordinator>();
-builder.Services.AddIntegrationEventConsumer<StockReserved, StockReservedSagaConsumer>();
-builder.Services.AddIntegrationEventConsumer<StockReservationFailed, StockReservationFailedSagaConsumer>();
-builder.Services.AddIntegrationEventConsumer<PaymentCharged, PaymentChargedSagaConsumer>();
-builder.Services.AddIntegrationEventConsumer<PaymentFailed, PaymentFailedSagaConsumer>();
-builder.Services.AddIntegrationEventConsumer<StockReleased, StockReleasedSagaConsumer>();
-builder.Services.AddRabbitMqConsumer("orders");
+builder.Services.AddOrders(connectionString);
+builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq").Bind);
 
 var app = builder.Build();
 

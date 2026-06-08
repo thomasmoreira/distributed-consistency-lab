@@ -1,0 +1,13 @@
+# Normalize line endings: Git stores LF, checks out native on each platform.
+* text=auto
+
+# Force LF for cross-platform tooling files.
+*.sh   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf
+
+# Treat as binary (no EOL munging / no diff noise).
+*.png binary
+*.jpg binary
+*.ico binary

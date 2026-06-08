@@ -20,7 +20,7 @@ public sealed class OrderPlacedConsumer(InventoryDbContext db, IOutbox outbox) :
 
         if (stock is not null && stock.TryReserve(message.Quantity))
         {
-            outbox.Add(new StockReserved(message.OrderId, message.Sku, message.Quantity));
+            outbox.Add(new StockReserved(message.OrderId, message.Sku, message.Quantity, message.Amount));
         }
         else
         {

@@ -1,6 +1,7 @@
 using BuildingBlocks.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Services.Orders.Domain;
+using Services.Orders.Saga;
 
 namespace Services.Orders.Infrastructure;
 
@@ -14,10 +15,13 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options) :
 {
     public DbSet<Order> Orders => Set<Order>();
 
+    public DbSet<OrderSagaInstance> Sagas => Set<OrderSagaInstance>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("orders");
         modelBuilder.ApplyConfiguration(new OrderConfiguration());
+        modelBuilder.ApplyConfiguration(new OrderSagaInstanceConfiguration());
 
         base.OnModelCreating(modelBuilder);
     }

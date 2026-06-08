@@ -11,6 +11,10 @@ public sealed record StockReserved(Guid OrderId, string Sku, int Quantity, decim
 
 public sealed record StockReservationFailed(Guid OrderId, string Sku, string Reason) : IntegrationEvent;
 
+// Compensation command issued by the saga when payment fails; Inventory releases the stock
+// it had reserved and replies with StockReleased.
+public sealed record ReleaseStockRequested(Guid OrderId, string Sku, int Quantity) : IntegrationEvent;
+
 public sealed record StockReleased(Guid OrderId, string Sku, int Quantity) : IntegrationEvent;
 
 public sealed record PaymentCharged(Guid OrderId, decimal Amount) : IntegrationEvent;

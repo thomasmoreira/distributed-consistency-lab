@@ -2,6 +2,7 @@ using BuildingBlocks.Messaging;
 using Contracts;
 using Services.Orders.Domain;
 using Services.Orders.Infrastructure;
+using Services.Orders.Saga;
 
 namespace Services.Orders.Features;
 
@@ -23,6 +24,7 @@ public sealed class PlaceOrderHandler(OrdersDbContext db, IOutbox outbox, TimePr
         var order = Order.Place(request.Sku, request.Quantity, request.Amount, clock.GetUtcNow());
 
         db.Orders.Add(order);
+        db.Sagas.Add(OrderSagaInstance.Start(order.Id));
         outbox.Add(new OrderPlaced(order.Id, order.Sku, order.Quantity, order.Amount));
 
         await db.SaveChangesAsync(ct);

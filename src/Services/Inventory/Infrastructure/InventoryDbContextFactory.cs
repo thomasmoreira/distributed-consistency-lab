@@ -9,7 +9,7 @@ public sealed class InventoryDbContextFactory : IDesignTimeDbContextFactory<Inve
     public InventoryDbContext CreateDbContext(string[] args)
     {
         var options = new DbContextOptionsBuilder<InventoryDbContext>()
-            .UseNpgsql("Host=localhost;Database=dcl;Username=dcl;Password=dcl;SearchPath=inventory")
+            .UseNpgsql("Host=localhost;Database=dcl;Username=dcl;Password=dcl")
             .Options;
 
         return new InventoryDbContext(options);

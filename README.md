@@ -58,19 +58,51 @@ flowchart LR
 | `Inventory` | Worker | Reserva / libera estoque                                    |
 | `Payments`  | Worker | Cobra / estorna pagamento                                   |
 
-## Failure Modes & Trade-offs
+## Fluxo da saga (sequência)
 
-O coração do lab. Cada cenário é um teste de integração que sobe RabbitMQ +
-PostgreSQL reais via Testcontainers e — nos casos de broker — **mata e religa**
-o container no meio do fluxo.
+Cada `-)` é um evento assíncrono que viaja pelo RabbitMQ (publicado via outbox,
+consumido via inbox). Tudo entre o estado e o evento commita na mesma transação local.
 
-| #  | Cenário                                              | Garantia provada                                          |
-|----|-----------------------------------------------------|----------------------------------------------------------|
-| F1 | Broker cai entre o commit do outbox e a publicação  | Nada se perde: o dispatcher republica ao religar         |
-| F2 | Mesma mensagem entregue 2× (redelivery)             | Efeito único: o inbox descarta a segunda                 |
-| F3 | Consumidor morre após o efeito, antes do ack        | Redelivery + inbox → sem duplicação                      |
-| F4 | Pagamento falha no meio da saga                     | Compensação: estoque liberado, pedido cancelado          |
-| F5 | Dispatcher crasha entre publish e marcar processed  | Republica (duplicado) → absorvido pelo inbox             |
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant O as Orders
+    participant I as Inventory
+    participant P as Payments
+    C->>O: POST /orders
+    Note over O: grava Order(Pending) + OrderPlaced<br/>na MESMA transação (outbox)
+    O-)I: OrderPlaced
+    I-)P: StockReserved (reserva estoque)
+    alt pagamento aprovado
+        P-)O: PaymentCharged
+        Note over O: saga → Completed · Order = Confirmed
+    else pagamento recusado
+        P-)O: PaymentFailed
+        O-)I: ReleaseStockRequested (compensação)
+        I-)O: StockReleased (devolve estoque)
+        Note over O: saga → Cancelled · Order = Cancelled
+    end
+```
+
+## Garantias provadas (Failure Modes)
+
+O coração do lab: cada garantia tem um teste que sobe RabbitMQ + PostgreSQL reais
+via Testcontainers. Nada é prometido sem prova.
+
+| Garantia                                            | Como é provada                                              | Teste |
+|-----------------------------------------------------|-------------------------------------------------------------|-------|
+| Sem **dual-write** (estado + evento atômicos)       | Order + OrderPlaced numa única transação                    | `PlaceOrderTests` |
+| **F1** — broker indisponível, nada se perde         | broker congelado → OrderPlaced fica no outbox → publica ao voltar | `EndToEndResilienceTests` |
+| **Exactly-once-effect** no consumo (redelivery)     | a mesma mensagem entregue 2× produz o efeito 1× (inbox)     | `InboxProcessorTests`, `RabbitMqConsumerHostTests` |
+| Reserva / cobrança **idempotentes**                 | redelivery → reserva/cobra exatamente 1×                    | `InventoryReserveStockTests`, `PaymentsChargeTests` |
+| **Compensação** (pagamento falha)                   | falha → libera o estoque reservado → cancela o pedido       | `OrderSagaOrchestrationTests`, `InventoryReserveStockTests` |
+| **Exactly-once end-to-end**                         | o checkout completo nos 3 serviços conclui exatamente 1×    | `EndToEndResilienceTests` |
+| Saga em **2 estilos** com o mesmo desfecho          | orquestração e coreografia chegam ao mesmo resultado        | `OrderSagaOrchestrationTests`, `ChoreographyCoordinatorTests` |
+
+> A indisponibilidade do broker é simulada com `docker pause`/`unpause` (congela o
+> processo sem fechar conexões nem perder dados) — ver as notas de engenharia no
+> commit da fase de resiliência.
 
 **Trade-offs assumidos** (ver [`docs/adr/`](docs/adr)):
 - Mensageria **caseira** em vez de MassTransit — para expor a mecânica ([ADR-004](docs/adr/ADR-004-handrolled-messaging.md)).
@@ -94,16 +126,22 @@ só a coordenação do Orders muda. Comparação em
 
 ## Como rodar
 
-```bash
-# stack local (broker + banco + 3 serviços)
-docker compose -f docker/docker-compose.yml up --build
+**Pré-requisitos:** .NET 10 SDK e Docker.
 
-# testes (sobem seus próprios containers via Testcontainers — requer Docker)
+```bash
+# stack completo (RabbitMQ + Postgres + os 3 serviços) — POST /orders percorre o fluxo
+docker compose -f docker/docker-compose.yml up --build
+# em outro terminal:
+curl -X POST localhost:8080/orders \
+  -H "Content-Type: application/json" \
+  -d '{"sku":"SKU-1","quantity":2,"amount":100}'
+
+# testes — sobem seus próprios containers descartáveis via Testcontainers
 dotnet test
 ```
 
-> Os testes de integração **não** usam o docker-compose: cada teste cria
-> containers descartáveis para poder derrubar o broker isoladamente.
+> Os testes de integração **não** usam o docker-compose: cada teste sobe containers
+> próprios (Postgres/RabbitMQ) para isolar o cenário. Rodam sequencialmente.
 
 ## Estrutura
 

@@ -6,7 +6,7 @@ using Services.Inventory.Infrastructure;
 var builder = Host.CreateApplicationBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("Postgres")
-    ?? "Host=localhost;Database=dcl;Username=dcl;Password=dcl;SearchPath=inventory";
+    ?? "Host=localhost;Database=dcl;Username=dcl;Password=dcl";
 
 builder.Services.AddInventory(connectionString);
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq").Bind);
